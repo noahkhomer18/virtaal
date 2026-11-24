@@ -396,3 +396,14 @@ def test_set_virtaal_useragent_on_macos_includes_the_release(monkeypatch):
 
     assert client.user_agent.startswith('Virtaal/')
     assert 'darwin' in client.user_agent
+
+
+def test_put_sends_a_str_body_as_utf8():
+    # #4934: BytesIO() needs bytes, so a str PUT body raised TypeError.
+    req = HTTPRequest('http://example.com', method='PUT', data='{"source": "h\u00e9llo"}')
+    assert req.data.getvalue() == '{"source": "h\u00e9llo"}'.encode('utf-8')
+
+
+def test_put_sends_a_bytes_body_unchanged():
+    req = HTTPRequest('http://example.com', method='PUT', data=b'\xff\x00raw')
+    assert req.data.getvalue() == b'\xff\x00raw'

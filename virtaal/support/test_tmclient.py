@@ -170,6 +170,9 @@ class _FakeStore:
     def __str__(self):
         return self._content
 
+    def __bytes__(self):
+        return self._content.encode('utf-8')
+
 
 def test_get_store_stats_builds_a_get_request(monkeypatch):
     client, requests = _make_client(monkeypatch)
@@ -205,7 +208,7 @@ def test_upload_store_builds_a_put_request_with_the_stores_text(monkeypatch):
     assert request.url == 'http://example.com/en/af/store'
     assert request.method == 'PUT'
     assert request.id == 'test.po'
-    assert request.data == 'store content'
+    assert request.data == b'store content'
     assert request.user_agent == 'Virtaal/test'
 
 
@@ -312,3 +315,25 @@ def test_no_token_sends_no_header(monkeypatch, make_request):
 
     assert requests[0].headers is None
     assert requests[0].curl.opts[pycurl.FOLLOWLOCATION] == 1
+
+
+def test_add_unit_and_upload_store_build_real_put_requests(monkeypatch):
+    """#4934: through the real RESTRequest both raised TypeError, since
+    a PUT body goes into BytesIO, and upload_store() sent str(store),
+    which is the store's repr rather than the file."""
+    from translate.storage import po
+
+    client = TMClient('http://example.com')
+    sent = []
+    monkeypatch.setattr(client, 'add', sent.append)
+    unit = {'source': 'h\u00e9llo', 'target': 'hallo'}
+    store = po.pofile()
+    store.addsourceunit('h\u00e9llo').target = 'hallo'
+    store.filename = 'test.po'
+
+    client.add_unit(unit, 'en', 'af')
+    client.upload_store(store, 'en', 'af')
+
+    assert sent[0].data.getvalue() == json.dumps(unit).encode('utf-8')
+    assert sent[1].data.getvalue() == bytes(store)
+    assert b'msgid "h\xc3\xa9llo"' in sent[1].data.getvalue()

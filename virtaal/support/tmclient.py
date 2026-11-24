@@ -102,7 +102,8 @@ class TMClient(HTTPClient):
             )
 
     def upload_store(self, store, source_lang, target_lang, callback=None):
-        data = str(store)
+        # str() of a translate-toolkit store is its repr, not the file.
+        data = bytes(store)
         request = self._request("/%s/%s/store" % (source_lang, target_lang), store.filename, "PUT", data)
         self.add(request)
         if callback:

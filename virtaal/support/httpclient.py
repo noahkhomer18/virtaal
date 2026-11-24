@@ -103,6 +103,10 @@ class HTTPRequest(GObjectWrapper):
             self.curl.setopt(pycurl.CUSTOMREQUEST, method)
         if data:
             if method == "PUT":
+                # BytesIO needs bytes; callers such as TMClient.add_unit()
+                # pass JSON text (#4934).
+                if isinstance(data, str):
+                    data = data.encode('utf-8')
                 self.data = BytesIO(data)
                 self.curl.setopt(pycurl.READFUNCTION, self.data.read)
                 self.curl.setopt(pycurl.INFILESIZE, len(self.data.getvalue()))
